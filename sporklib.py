@@ -1,9 +1,21 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+"""
+spork
+-----
+
+A "little language" designed to facilitate the extraction and processing of
+data held in XML or HTML files.
+
+:copyright: (c) 2015 Grapeshot Ltd
+:author: S Arrowsmith <sion.arrowsmith@gmail.com>
+:licence: MIT, see LICENSE for more details
+"""
 from __future__ import print_function
 
 import sys
 import os
+import pprint
 
 from StringIO import StringIO
 from string import Template
@@ -45,28 +57,30 @@ class AttributeMapping(dict):
         return value
 
 class Spork:
+    """A Spork object represents one spork script"""
     def __init__(self, source, warn=False, debug=False, formats=["XML", "HTML"]):
+        """Initialise this object from the script given by the file-like object "source"."""
         if not source.readline().startswith("#!"):
             source.seek(0)
-        self.source = tinycss.make_parser().parse_stylesheet_file(source)
         self.warn = warn
         self.debug = debug
         self.translator = cssselect.GenericTranslator()
         self.namespace = globals().copy()
         self.namespace["self"] = self
         self.xmlns = dict()
-        self.parse()
+        self.parse(source)
         self.formats = formats
         self.doccument = None
 
-    def parse(self):
+    def parse(self, source):
         self.rules = list()
+        parsed = tinycss.make_parser().parse_stylesheet_file(source)
         if self.warn:
-            if self.source.errors:
-                for error in self.source.errors:
+            if parsed.errors:
+                for error in parsed.errors:
                     print(error, file=sys.stderr)
                 return
-        for rule in self.source.rules:
+        for rule in parsed.rules:
             if rule.at_keyword:
                 if rule.at_keyword != '@import':
                     if self.warn:
@@ -82,22 +96,23 @@ class Spork:
                     xpath = self.translator.css_to_xpath(css)
             self.rules.append((xpath, rule.declarations))
 
-    def run(self, document):
-        namespace = {"[]": []}
-        for xpath, declarations in self.rules:
-            if xpath is None:
-                self.process(None, declarations, namespace)
-            else:
-                if self.debug:
-                    print("+xpath\n++", xpath)
-                for element in document.xpath(xpath, namespaces=self.xmlns):
-                    self.process(element, declarations, namespace)
+    def eval(self, name, value, namespace, attribs):
+        result = None
+        copy = False
+        if value in namespace:
+            return namespace[value][:], True
+        value = value.replace("[]", "[-1]")
+        if name != "_":
+            if name in namespace and "#" in value:
+                value = "[ (%s) for __%s__ in %s ]" % (value.replace("#", "__%s__"%name), name, name)
+                copy = True
+            elif value.endswith("[:]"):
+                copy = True
+        if attribs.element is not None:
+            value = Template(value).safe_substitute(attribs)
         if self.debug:
-            print("+namespace")
-            for n in sorted(namespace):
-                if n != "[]":
-                    print("++ %s\t=> %s" % (n, namespace[n]))
-        return namespace
+            print("++ %s <- %s" % (name, value))
+        return eval(value, self.namespace, namespace), copy
 
     def process(self, element, declarations, namespace):
         namespace['_'] = element
@@ -110,36 +125,50 @@ class Spork:
                 name = element.tag
                 if name.startswith("{"):
                     name = name[name.find("}")+1:]
+                name = name.replace("-", "_")
             value = declaration.value.as_css().strip(";").strip()
-            if value in namespace:
-                namespace[name] = namespace[value][:]
-                continue
-            if element is not None:
-                value = Template(value).safe_substitute(attribs)
-            if self.debug:
-                print("++ %s <- %s" % (name, value))
-            if name == "_":
-                eval(value, self.namespace, namespace)
-            else:
-                if name in namespace and "#" in value:
-                    value = "[ (%s) for __ in %s ]" % (value.replace("#", "__"), name)
-                    namespace[name] = eval(value, self.namespace, namespace)
-                elif value.endswith("[:]"):
-                    namespace[name] = eval(value, self.namespace, namespace)
+            result, copy = self.eval(name, value, namespace, attribs)
+            if name != "_":
+                if copy:
+                    namespace[name] = result
                 else:
-                    namespace.setdefault(name, []).append(eval(value, self.namespace, namespace))
+                    namespace.setdefault(name, []).append(result)
         del namespace['_']
 
-    def select(self, selector, document=None):
+    def run(self, document):
+        """Run this script over the etree element "document" """
+        namespace = {"[]": [], "__": document}
+        for xpath, declarations in self.rules:
+            if xpath is None:
+                self.process(None, declarations, namespace)
+            else:
+                if self.debug:
+                    print("+xpath\n++", xpath)
+                for element in document.xpath(xpath, namespaces=self.xmlns):
+                    self.process(element, declarations, namespace)
+        if self.debug:
+            print("+namespace")
+            for n in sorted(namespace):
+                if not n.startswith("__"):
+                    print("++ %s\t=> %s" % (n, namespace[n]))
+        return namespace
+
+    def selector(self, selector, document=None):
+        """Generator to run this script over all elements in the given document identified by selector.
+        If document is None, use the last document returned by get_root()."""
         results = []
         if document is None:
             document = self.document
         xpath = self.translator.css_to_xpath(selector)
         for element in document.xpath(xpath):
-            results.append((element, self.run(element)))
-        return results
+            yield ((element, self.run(element)))
+
+    def select(self, selector, document=None):
+        """Convenience function to return result of selector() as a list"""
+        return list(self.selector(selector, document))
 
     def get_root(self, document, parserargs={}):
+        """Return the root element of the given document, and remember it for subsequent calls to select()."""
         for name in self.formats:
             parser = getattr(etree, name+"Parser")(**parserargs)
             try:
@@ -160,6 +189,7 @@ class Spork:
         raise
 
 def parse_args(args):
+    """Parse arguments passed when sporklib is used as a script"""
     parser = ArgumentParser(prog="spork", description="spork is a mark-up scanning and processing language")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("-f", "--file", metavar="progfile", dest="source", type=file, help="filename of spork program")
@@ -169,6 +199,7 @@ def parse_args(args):
     parser.add_argument("-X", "--xml", action='store_true', help="attempt XML parsing of document")
     parser.add_argument("-H", "--html", action='store_true', help="attempt HTML parsing of document")
     parser.add_argument("-s", "--select", metavar="tag", help="process selected elements from document")
+    parser.add_argument("-p", "--print", action='store_true', help="print result(s)")
     parser.add_argument("-d", "--debug", action='store_true', help="display debugging information")
     parseropts = parser.add_argument_group(title="Document parser options", description="These options only apply if -X/--xml or -H/--html are given.")
     parseropts.add_argument("--attribute-defaults", action='store_true', help="read the DTD (if referenced by the document) and add the default attributes from it")
@@ -183,6 +214,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 def get_parserargs(args):
+    """Convert command line arguments to lxml parser arguments"""
     parserlist = list()
     kwargs = dict()
     va = vars(args)
@@ -195,6 +227,7 @@ def get_parserargs(args):
     return kwargs
 
 def main(args=sys.argv[1:]):
+    """Entry point for using sporklib as a script"""
     args = parse_args(args)
     prog = Spork(args.source, args.warn, args.debug)
     if args.xml:
@@ -203,9 +236,12 @@ def main(args=sys.argv[1:]):
         prog.formats = ["HTML"]
     root = prog.get_root(args.file, get_parserargs(args))
     if args.select:
-        prog.select(args.select, root)
+        results = prog.selector(args.select, root)
     else:
-        prog.run(root)
+        results = [prog.run(root)]
+    if args.print:
+        for result in results:
+            pprint.pprint(result[1])
 
 if __name__ == '__main__':
     main()
