@@ -58,6 +58,16 @@ class AttributeMapping(dict):
 
 class Spork:
     """A Spork object represents one spork script"""
+    class FlowControl(Exception):
+        pass
+    class DEFAULT(FlowControl, StopIteration):
+        pass
+    class PROGRAM(FlowControl):
+        pass
+    class ELEMENT(FlowControl):
+        pass
+    class SELECTOR(FlowControl):
+        pass
     def __init__(self, source, warn=False, debug=False, formats=["XML", "HTML"]):
         """Initialise this object from the script given by the file-like object "source"."""
         if not source.readline().startswith("#!"):
@@ -133,19 +143,20 @@ class Spork:
                     namespace[name] = result
                 else:
                     namespace.setdefault(name, []).append(result)
-        del namespace['_']
 
-    def run(self, document):
-        """Run this script over the etree element "document" """
+    def run_element(self, document):
         namespace = {"[]": [], "__": document}
         for xpath, declarations in self.rules:
-            if xpath is None:
-                self.process(None, declarations, namespace)
-            else:
-                if self.debug:
-                    print("+xpath\n++", xpath)
-                for element in document.xpath(xpath, namespaces=self.xmlns):
-                    self.process(element, declarations, namespace)
+            try:
+                if xpath is None:
+                    self.process(None, declarations, namespace)
+                else:
+                    if self.debug:
+                        print("+xpath\n++", xpath)
+                    for element in document.xpath(xpath, namespaces=self.xmlns):
+                        self.process(element, declarations, namespace)
+            except Spork.SELECTOR:
+                pass
         if self.debug:
             print("+namespace")
             for n in sorted(namespace):
@@ -153,15 +164,32 @@ class Spork:
                     print("++ %s\t=> %s" % (n, namespace[n]))
         return namespace
 
+    def run(self, document=None):
+        """Run this script over the given document root element
+        If document is None, use the last document returned by get_root().
+        Returns the final state of the spork variables."""
+        if document is None:
+            document = self.document
+        try:
+            return self.run_element(document)
+        except Spork.FlowControl:
+            pass
+        return {}
+
     def selector(self, selector, document=None):
         """Generator to run this script over all elements in the given document identified by selector.
-        If document is None, use the last document returned by get_root()."""
-        results = []
+        If document is None, use the last document returned by get_root().
+        Yields tuples of (selected_element, spork_variables)."""
         if document is None:
             document = self.document
         xpath = self.translator.css_to_xpath(selector)
         for element in document.xpath(xpath):
-            yield ((element, self.run(element)))
+            try:
+                yield ((element, self.run_element(element)))
+            except Spork.ELEMENT:
+                pass
+            except Spork.PROGRAM:
+                break
 
     def select(self, selector, document=None):
         """Convenience function to return result of selector() as a list"""
@@ -187,6 +215,11 @@ class Spork:
                 pass
         # *Theoretically* we can get here with no exception if a document parses but getroot() returns None
         raise
+
+    def exit(self, how=DEFAULT):
+        if not issubclass(how, Spork.FlowControl):
+            return
+        raise how()
 
 def parse_args(args):
     """Parse arguments passed when sporklib is used as a script"""
@@ -238,7 +271,7 @@ def main(args=sys.argv[1:]):
     if args.select:
         results = prog.selector(args.select, root)
     else:
-        results = [prog.run(root)]
+        results = [(root, prog.run(root))]
     if args.print:
         for result in results:
             pprint.pprint(result[1])

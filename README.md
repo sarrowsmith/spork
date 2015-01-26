@@ -30,6 +30,9 @@ Copy `spork` to somewhere on your `$PATH` and ensure it is executable.
 Usage
 -----
 
+spork
+-----
+
 spork code uses essentially the same format as a CSS stylesheet, with
 declaration lists replaced by lists of Python expressions. This structure
 looks a lot like an AWK program, which is one of the observations behind the
@@ -111,6 +114,23 @@ The environment in which an expression is evaluated consists of:
   * the contextual element (if present) as `_`
   * variables assigned by spork as lists
 
+Extra flow control within spork code can be acheived by calling `self.exit()`.
+With no arguments, it restarts execution of the current stanza with the next
+matching contextual element (or moves on to the next stanza if there is no
+such element). Otherwise, it may be called with one of the following:
+  * `Spork.SELECTOR`: abandons processing the current stanza and moves on to
+    the next.
+  * `Spork.ELEMENT`: abandons all processing, but moves on to the next root
+    element as selected by calling `select()` or using the `-s` option on the
+    command line. If there was no `-s` option or `run()` was called instead of
+    `select()`, it is equivalent to `Spork.PROGRAM`.
+  * `Spork.PROGRAM`: abandons all processing and returns control to the
+    caller. Note this difference between calling `self.exit(Spork.PROGRAM)`
+    and `sys.exit(0)` (which exits the program immediately). In particular,
+    using `self.exit(Spork.PROGRAM)` in spork code called from the command
+    line with `-p -s ...` means the `-p` will still apply to all selected
+    elements completely processed up to the point at which it was called.
+
 Examples
 --------
 
@@ -151,4 +171,4 @@ persons {
 }
 ```
 
-S. Arrowsmith 2015-01-08
+S. Arrowsmith 2015-01-20
