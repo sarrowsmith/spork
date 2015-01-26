@@ -17,7 +17,10 @@ import sys
 import os
 import pprint
 
-from StringIO import StringIO
+if sys.version_info[0] > 2:
+    from io import StringIO
+else:
+    from StringIO import StringIO
 from string import Template
 from collections import defaultdict
 try:
@@ -210,7 +213,7 @@ class Spork:
                     self.xmlns = root.nsmap
                 self.document = root
                 return root
-            except etree.ParseError, e:
+            except etree.ParseError as e:
                 document.seek(0)
                 pass
         # *Theoretically* we can get here with no exception if a document parses but getroot() returns None
