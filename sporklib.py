@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-spork
+Spork
 -----
 
 A "little language" designed to facilitate the extraction and processing of
@@ -15,7 +15,7 @@ from __future__ import print_function
 
 import sys
 import os
-import pprint
+import json
 
 if sys.version_info[0] > 2:
     from io import StringIO
@@ -165,6 +165,8 @@ class Spork:
             for n in sorted(namespace):
                 if not n.startswith("__"):
                     print("++ %s\t=> %s" % (n, namespace[n]))
+        if "_" in namespace: del namespace["_"]
+        del namespace["[]"]; del namespace["__"]
         return namespace
 
     def run(self, document=None):
@@ -226,10 +228,10 @@ class Spork:
 
 def parse_args(args):
     """Parse arguments passed when sporklib is used as a script"""
-    parser = ArgumentParser(prog="spork", description="spork is a mark-up scanning and processing language")
+    parser = ArgumentParser(prog="spork", description="Spork is a mark-up scanning and processing language")
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("-f", "--file", metavar="progfile", dest="source", type=file, help="filename of spork program")
-    source.add_argument("-e", "--source", metavar="program-text", dest="source", type=StringIO, help="text of spork program")
+    source.add_argument("-f", "--file", metavar="progfile", dest="source", type=file, help="filename of Spork program")
+    source.add_argument("-e", "--source", metavar="program-text", dest="source", type=StringIO, help="text of Spork program")
     parser.add_argument("-w", "--warn", action='store_true', help="warn of program parsing errors")
     parser.add_argument("file", nargs='?', type=file, default=sys.stdin, help="document to be processed (default stdin)")
     parser.add_argument("-X", "--xml", action='store_true', help="attempt XML parsing of document")
@@ -272,12 +274,12 @@ def main(args=sys.argv[1:]):
         prog.formats = ["HTML"]
     root = prog.get_root(args.file, get_parserargs(args))
     if args.select:
-        results = prog.selector(args.select, root)
+        results = [ r[1] for r in prog.selector(args.select, root) ]
     else:
-        results = [(root, prog.run(root))]
+        results = [ prog.run(root) ]
     if args.print:
-        for result in results:
-            pprint.pprint(result[1])
+        json.dump(results, sys.stdout, indent=2)
+        print()
 
 if __name__ == '__main__':
     main()
