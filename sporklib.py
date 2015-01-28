@@ -7,7 +7,7 @@ Spork
 A "little language" designed to facilitate the extraction and processing of
 data held in XML or HTML files.
 
-:copyright: (c) 2015 Grapeshot Ltd
+:copyright: © 2015 Grapeshot Ltd
 :author: S Arrowsmith <sion.arrowsmith@gmail.com>
 :licence: MIT, see LICENSE for more details
 """

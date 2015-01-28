@@ -8,7 +8,7 @@ Spork is a "little language" designed to facilitate the extraction and
 processing of data held in XML or HTML files. The intent is to fulfil a
 similar role to AWK, but with structured rather than line-oriented data. It
 can be run as a program, either explicitly or with a `#!` line, following the
-pattern of awk implementations, or used as a Python library.
+pattern of awk implementations, or used as a Python module.
 
 A spork is not quite a fork, and a rather poor spoon. The Spork language is
 not quite a declarative language (compare it to XSLT) and would make a poor
@@ -36,13 +36,16 @@ These are all availale on PyPI and can be installed with
 ```$ pip install lxml cssselect tinycss```
 
 Alternatively, most Linux distributions will have their own versions of these
-packages.
+packages. This is particularly important for lxml, which does not install
+smoothly from PyPI on all platforms.
 
 Once you have the dependencies installed:
 
-Copy `sporklib.py` to somewhere on your `$PYTHONPATH`.
+```$ python setup.py install```
 
-Copy `spork` to somewhere on your `$PATH` and ensure it is executable.
+spork currently requires Python 2.7 to run, although the sporklib module which
+implements Spork can be used with Python 2.6 and should also work with Python
+3.x.
 
 Usage
 -----
@@ -280,4 +283,4 @@ def select(self, selector, document=None):
 
 so unless you really need the list it is probably better to use `selector()`.
 
-S. Arrowsmith 2015-01-27
+S. Arrowsmith 2015-01-28
