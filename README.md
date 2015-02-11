@@ -31,9 +31,12 @@ library:
   * cssselect (https://pythonhosted.org/cssselect/)
   * tinycss (https://pythonhosted.org/tinycss/)
 
-These are all availale on PyPI and can be installed with
+These are all available on PyPI and can be installed with
 
 ```$ pip install lxml cssselect tinycss```
+
+If you are using a version of Python prior to 2.7, you also need argparse
+(https://pypi.python.org/pypi/argparse).
 
 Alternatively, most Linux distributions will have their own versions of these
 packages. This is particularly important for lxml, which does not install
@@ -43,8 +46,7 @@ Once you have the dependencies installed:
 
 ```$ python setup.py install```
 
-spork currently requires Python 2.7 to run, although the sporklib module which
-implements Spork can be used with Python 2.6 and should also work with Python
+spork has been tested with Python 2.6 and 2.7, and should also work with Python
 3.x.
 
 Usage
