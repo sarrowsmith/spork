@@ -107,7 +107,7 @@ class Spork:
                     xpath = None
                 else:
                     xpath = self.translator.css_to_xpath(css)
-            self.rules.append((xpath, rule.declarations))
+                self.rules.append((xpath, rule.declarations))
 
     def eval(self, name, value, namespace, attribs):
         result = None
