@@ -128,7 +128,7 @@ element.
 As well as stanzas of this form, import statements of the form:
 
 ```
-@import module
+@import "module";
 ```
 
 are permitted. These work exactly like Python import statements, importing the
@@ -175,6 +175,7 @@ be inserted using `$_TAG`, `$_TEXT` and `$_XML` respectively.
 
 The environment in which an expression is evaluated consists of:
   * builtins, including print as a function
+  * the `defaultdict`, `StringIO` and `Template` classes
   * the `sys`, `os`, `json` and `etree` modules
   * any modules previously imported using `@import`
   * the Spork object running the code as `self`
