@@ -11,7 +11,7 @@ copyright © 2015 Grapeshot Ltd
 
 from distutils.core import setup
 setup(name='spork',
-      version='0.2.0',
+      version='0.2.1',
       description='The Spork little language',
       author='S Arrowsmith',
       author_email='sion.arrowsmith@gmail.com',
