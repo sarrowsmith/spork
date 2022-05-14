@@ -6,7 +6,8 @@ Spork
 A "little language" designed to facilitate the extraction and processing of
 data held in XML or HTML files.
 
-copyright © 2015 Grapeshot Ltd
+copyright © 2015-2022 Oracle Corporation
+copyright © 2022 Sioned Arrowsmith
 """
 
 from distutils.core import setup
